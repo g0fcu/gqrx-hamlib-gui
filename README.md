@@ -1,6 +1,6 @@
 # gqrx-hamlib-gui
 
-gqrx_hamlib - a gqrx to Hamlib interface to keep frequency
+gqrxHamlib - a gqrx to Hamlib interface to keep frequency
 between gqrx and a radio in sync when using gqrx as a panadaptor
 using Hamlib to control the radio
 
