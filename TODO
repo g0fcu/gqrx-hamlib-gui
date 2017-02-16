@@ -1,0 +1,8 @@
+To-do list
+1. change the method to end the thread to a recommended method rather than the poor 'terminate' statement
+2. add Options menu
+3. add support for fldigi frequency control
+4. add error handling when gqrx, hamlib or fldigi do not respond
+5. add support for different ports from the defaults for gqrx, hamlib & fldigi
+6. add support for different ip addresses for gqrx, hamlib, & fldigi
+7. look into maintaining bandwidth between gqrx and hamlib
