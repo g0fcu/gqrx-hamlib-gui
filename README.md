@@ -13,26 +13,11 @@ Return codes from gqrx and Hamlib are printed to the GUI window
 
 This program is written in Python 3.5/PyQt4
 
-
 Installation
 ------------
-SIP is a pre-requisite to PyQt4
-Install SIP: 	https://www.riverbankcomputing.com/software/sip/download
-		Extract downloaded file
-		cd to extracted files		
-		python3 configure.py
-		make
-		sudo make install
+Install PyQt4 via your package manager if not already installed: sudo apt-get install python-qt4
 
-Install PyQt4*:  https://www.riverbankcomputing.com/software/pyqt/download
-		Extract downloaded file
-		cd to extracted files	
-		python3 configure-ng.py
-		make
-		sudo make install
-
-Install gqrxHamlib: sudo pip3 install gqrxHamlib
+Install gqrxHamlib: sudo pip install gqrxHamlib
 
 Run gqrxHamlib: type 'gqrxHamlib' at command prompt
 
-*Unfortunately it is not possible to include PyQt4 in the gqrxHamlib pip install. 
