@@ -11,7 +11,7 @@ starting this program. Ports used are the defaults for gqrx and Hamlib.
 
 Return codes from gqrx and Hamlib are printed to the GUI window
 
-This program is written in Python 3.5/PyQt4
+This program is written in Python/PyQt4
 
 Installation
 ------------
