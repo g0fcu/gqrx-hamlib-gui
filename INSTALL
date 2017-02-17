@@ -1,17 +1,8 @@
-Install SIP: 	https://www.riverbankcomputing.com/software/sip/download
-		Extract downloaded file
-		cd to extracted files		
-		python3 configure.py
-		make
-		sudo make install
 
-Install PyQt4:  https://www.riverbankcomputing.com/software/pyqt/download
-		Extract downloaded file
-		cd to extracted files	
-		python3 configure-ng.py
-		make
-		sudo make install
+Installation
+------------
+Install PyQt4 via your package manager if not already installed: sudo apt-get install python-qt4
 
-Install gqrxHamlib: sudo pip3 install gqrxHamlib
+Install gqrxHamlib: sudo pip install gqrxHamlib
 
 Run gqrxHamlib: type 'gqrxHamlib' at command prompt
