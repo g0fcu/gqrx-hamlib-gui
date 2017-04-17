@@ -26,15 +26,15 @@ import sys
 import socket
 import time
 from os.path import expanduser
-from PyQt4 import QtCore, QtGui
-from gqrxHamlib import gqrxHamlibGUI
+from PyQt4 import QtGui, QtCore
 from PyQt4.QtCore import QThread
-import xmlrpclib
+from gqrxHamlib import gqrxHamlibGUI
+import xmlrpc.client
 
 class startControl(QThread):
     reportErr = QtCore.pyqtSignal(str, str)
     
-    def __init__(self, control, oneoff, gqrxIPv, gqrxPortv, hamlibIPv, hamlibPortv, fldigiIPv, fldigiPortv, fldigiv, modev):
+    def __init__(self, control, oneoff, gqrxIPv, gqrxPortv, hamlibIPv, hamlibPortv, fldigiIPv, fldigiPortv, fldigiv, modev, ifModev, ifFreqv):
         QThread.__init__(self)
         self.control = control
         self.oneoff = oneoff
@@ -49,9 +49,11 @@ class startControl(QThread):
         self.modev = modev
         TCP_IP = '127.0.0.1'
         FLDIGI_PORT = 7362
-        #if self.fldigi_option_set == 1:
-        #self.server = xmlrpclib.ServerProxy('http://{}:{}/'.format(self.fldigiIPv, self.fldigiPortv))
-        #    self.fldigi_option_set = 0
+        
+        self.ifFreqv = ifFreqv
+        self.ifModev = ifModev
+        
+
         
                   
     def __del__(self):
@@ -66,7 +68,7 @@ class startControl(QThread):
             endpoint = 'flrig'
             RIG_PORT = FLRIG_PORT
             TCP_IP = self.fldigiIPv
-            self.server = xmlrpclib.ServerProxy('http://{}:{}/'.format(TCP_IP, RIG_PORT))
+            self.server = xmlrpc.client.ServerProxy('http://{}:{}/'.format(TCP_IP, RIG_PORT))
         else:
             endpoint = 'hamlib'
             RIG_PORT = HAMLIB_PORT
@@ -81,23 +83,32 @@ class startControl(QThread):
         old_rig_mode = ''
         old_gqrx_mode = ''
         data = 0
-        
+        gqrx_freq = self.getfreq(self.gqrxIPv, GQRX_PORT, 'gqrx')
+        if gqrx_freq.find('\n') != -1:
+            gqrx_freq = gqrx_freq[0:gqrx_freq.find('\n')]
+        else:
+            print('ERROR')
+        old_gqrx_freq = 0 #gqrx_freq
+                 
         while self.control > 0:       
             time.sleep(0.2)
             if self.control == 1 or self.control == 3:
-                rig_freq = str(self.getfreq(TCP_IP, RIG_PORT, endpoint))
+                #rig_freq = str(self.getfreq(TCP_IP, RIG_PORT, endpoint))
+                rig_freq = self.getfreq(TCP_IP, RIG_PORT, endpoint)
                 if endpoint == 'hamlib':
                     if rig_freq.find('\n') != -1:
                         rig_freq = rig_freq[0:rig_freq.find('\n')]
                 else:
-                    if rig_freq.find('.') != -1:
-                        rig_freq = rig_freq[0:rig_freq.find('.')]
+                    rig_freqStr = repr(rig_freq)
+                    if rig_freqStr.find('.') != -1:
+                        rig_freqStr = rig_freqStr[0:rig_freqStr.find('.')]
+                        rig_freq = int(rig_freqStr)
                 if rig_freq != old_rig_freq:
                     # set gqrx to Hamlib/flrig frequency
-                    self.setfreq(self.gqrxIPv, GQRX_PORT, 'gqrx', float(rig_freq))
+                    self.setfreq(self.gqrxIPv, GQRX_PORT, 'gqrx', int(rig_freq))
                     #print('SetFreq Return Code from GQRX: {0}'.format(rc))
                     old_rig_freq = rig_freq
-                    old_gqrx_freq = rig_freq
+                    old_gqrx_freq = gqrx_freq
                 if self.modev == 'Y':
                     rig_mode = self.getmode(TCP_IP, RIG_PORT, endpoint)[:3]
                     if rig_mode != old_rig_mode:
@@ -106,28 +117,61 @@ class startControl(QThread):
                         self.setmode(self.gqrxIPv, GQRX_PORT, 'gqrx', set_mode)
                         old_rig_mode = rig_mode
                         old_gqrx_mode = rig_mode
-                   
+            
+       
             if self.control == 1 or self.control == 2:
-                gqrx_freq = str(self.getfreq(self.gqrxIPv, GQRX_PORT, 'gqrx'))
+                gqrx_freq = self.getfreq(self.gqrxIPv, GQRX_PORT, 'gqrx')
                 if gqrx_freq.find('\n') != -1:
                     gqrx_freq = gqrx_freq[0:gqrx_freq.find('\n')]
-                if gqrx_freq != old_gqrx_freq:
-                    # set Hamlib to gqrx frequency
-                    self.setfreq(TCP_IP, RIG_PORT, endpoint, float(gqrx_freq))
-                    old_gqrx_freq = gqrx_freq
-                    old_rig_freq = gqrx_freq
-                if self.modev == 'Y':        
-                    gqrx_mode = self.getmode(self.gqrxIPv, GQRX_PORT, 'gqrx')[:3]
-                    if gqrx_mode != old_gqrx_mode:
+                if self.control == 2 and self.ifModev == 'Y':
+                    if gqrx_freq != old_gqrx_freq:
+                        if gqrx_freq > self.ifFreqv:
+                            ifDiff = int(gqrx_freq) - int(self.ifFreqv)
+                        else:
+                            ifDiff = 0 - (int(self.ifFreqv) - int(gqrx_freq))
+                        #print 'ifDiff', ifDiff,'ifFreqv',int(self.ifFreqv),'gqrx_freq',int(gqrx_freq)
+                        rig_freq = str(self.getfreq(TCP_IP, RIG_PORT, endpoint))
+                        if endpoint == 'hamlib':
+                             if rig_freq.find('\n') != -1:
+                                rig_freq = rig_freq[0:rig_freq.find('\n')]
+                        else:
+                            if rig_freq.find('.') != -1:
+                                rig_freq = rig_freq[0:rig_freq.find('.')]
+                        
+                        self.setfreq(TCP_IP, RIG_PORT, endpoint, float(int(rig_freq) + int(ifDiff)))
+                        #print 'calc', float(int(rig_freq) - int(ifDiff))
+                        #old_gqrx_freq = self.ifFreqv
+                        gqrx_freq = self.ifFreqv
+                        self.setfreq(self.gqrxIPv, GQRX_PORT, 'gqrx', float(gqrx_freq))
+                            
+                    if self.modev == 'Y':        
+                        gqrx_mode = self.getmode(self.gqrxIPv, GQRX_PORT, 'gqrx')[:3]
+                        if gqrx_mode != old_gqrx_mode:
+                            # set Hamlib to gqrx frequency
+                            self.setmode(TCP_IP, RIG_PORT, endpoint, gqrx_mode)
+                            #print('SetMode Return Code from Hamlib: {0}'.format(rc))
+                            old_gqrx_mode = gqrx_mode
+                            old_rig_mode = gqrx_mode  
+                else:
+                    if gqrx_freq != old_gqrx_freq:
                         # set Hamlib to gqrx frequency
-                        self.setmode(TCP_IP, RIG_PORT, endpoint, gqrx_mode)
-                        #print('SetMode Return Code from Hamlib: {0}'.format(rc))
-                        old_gqrx_mode = gqrx_mode
-                        old_rig_mode = gqrx_mode  
-            
+                        self.setfreq(TCP_IP, RIG_PORT, endpoint, float(gqrx_freq))
+                        old_gqrx_freq = gqrx_freq
+                        old_rig_freq = gqrx_freq
+                    if self.modev == 'Y':        
+                        gqrx_mode = self.getmode(self.gqrxIPv, GQRX_PORT, 'gqrx')[:3]
+
+                        if gqrx_mode != old_gqrx_mode:
+                            # set Hamlib to gqrx frequency
+                            self.setmode(TCP_IP, RIG_PORT, endpoint, gqrx_mode)
+                            #print('SetMode Return Code from Hamlib: {0}'.format(rc))
+                            old_gqrx_mode = gqrx_mode
+                            old_rig_mode = gqrx_mode 
+                            
             if self.oneoff == True:
                 return
-            
+    
+      
     def getfreq(self, IP, PORT, endpoint):
         if endpoint == 'hamlib' or endpoint == 'gqrx':
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
@@ -136,12 +180,13 @@ class startControl(QThread):
             sock.connect(server_address)
             sock.sendall(b'f\n')
             data = sock.recv(16)
-            print ('get', endpoint, ' ',IP ,' ',data)
+            #print ('get', endpoint, ' ',IP ,' ',data)
             if data[:4] == 'RPRT':
                 if data[:6] != 'RPRT 0':
                     self.reportErr.emit(endpoint, str(data))
                     return
             sock.close()
+            data = data.decode("utf-8")
         else:
             data = 0
             data = self.server.main.get_frequency()
@@ -155,11 +200,11 @@ class startControl(QThread):
             server_address = (IP, PORT)
             sock.connect(server_address)
             build_msg = 'F ' + str(freq) + '\n'
-            MESSAGE = bytes(build_msg)
+            MESSAGE = bytes(build_msg, 'utf-8')
             sock.sendall(MESSAGE)
-            print ('set', endpoint, ' ',IP ,' ',build_msg,MESSAGE)
+            #print ('set', endpoint, ' ',IP ,' ',build_msg,MESSAGE)
             data = sock.recv(16)
-            print ('set', endpoint, ' ',IP ,' ',data)
+            #print ('set', endpoint, ' ',IP ,' ',data)
             if data[:4] == 'RPRT':
                 if data[:6] != 'RPRT 0':
                     self.reportErr.emit(endpoint, str(data))
@@ -183,6 +228,7 @@ class startControl(QThread):
                     self.reportErr.emit(endpoint, str(data))
                     return
             sock.close()
+            data = data.decode("utf-8")
         else:
             data = self.server.rig.get_mode(str())  
         return data
@@ -195,7 +241,7 @@ class startControl(QThread):
             server_address = (IP, PORT)
             sock.connect(server_address)
             build_msg = 'M ' + str(mode) + ' 0' + '\n'
-            MESSAGE = bytes(build_msg)
+            MESSAGE = bytes(build_msg, "utf-8")
             sock.sendall(MESSAGE)
             data = ''
             data = sock.recv(7)
@@ -217,7 +263,8 @@ class gqrxHamlib(QtGui.QMainWindow, gqrxHamlibGUI.Ui_MainWindow):
         oneoff = False
         global rc 
         rc = ''
-        self.controlThread = startControl(self.control, oneoff, self.gqrxIPv, self.gqrxPortv, self.hamlibIPv, self.hamlibPortv, self.fldigiIPv, self.fldigiPortv, self.fldigiv, self.modev)
+        
+        self.controlThread = startControl(self.control, oneoff, self.gqrxIPv, self.gqrxPortv, self.hamlibIPv, self.hamlibPortv, self.fldigiIPv, self.fldigiPortv, self.fldigiv, self.modev, self.ifModev, self.ifFreqv)
         self.controlThread.reportErr.connect(self.reportErrMsg)
         # At this point we want to allow user to stop/terminate the thread
         # so we enable that button
@@ -228,82 +275,89 @@ class gqrxHamlib(QtGui.QMainWindow, gqrxHamlibGUI.Ui_MainWindow):
         self.btn_stop.clicked.connect(self.stopThread)
         self.actionSetup.triggered.connect(self.readConfig)
         self.buttonBox.accepted.connect(self.updateConfig)
-        self.pushButton.clicked.connect(self.gqrxhamlibSync)
+        if self.ifModev != 'Y':
+            self.pushButton.clicked.connect(self.gqrxhamlibSync)
+            self.pushButton_3.clicked.connect(self.hamlibControl)
+            self.pushButton_4.clicked.connect(self.hamlibControlOneoff)
+             
         self.pushButton_2.clicked.connect(self.gqrxControl)
-        self.pushButton_3.clicked.connect(self.hamlibControl)
         self.pushButton_6.clicked.connect(self.gqrxControlOneoff)
-        self.pushButton_4.clicked.connect(self.hamlibControlOneoff) 
-    
+        
     def reportErrMsg(self, source, rc):
         self.errorMsg.setText('Error, return code ' + rc + ' reported by ' + source)
                     
     def stopThread(self):
         self.btn_stop.setStyleSheet("background-color: red")
-        self.pushButton.setStyleSheet("background-color: green")
+        if self.ifModev != 'Y':
+            self.pushButton.setStyleSheet("background-color: green")
+            self.pushButton_3.setStyleSheet("background-color: green")
+            self.pushButton_4.setStyleSheet("background-color: green")
         self.pushButton_2.setStyleSheet("background-color: green")
-        self.pushButton_3.setStyleSheet("background-color: green")
-        self.pushButton_4.setStyleSheet("background-color: green")
         self.pushButton_6.setStyleSheet("background-color: green")
         self.control = 0
         self.controlThread.terminate()
         
     def gqrxhamlibSync(self):
         self.btn_stop.setStyleSheet("background-color: green")
-        self.pushButton.setStyleSheet("background-color: red")
+        if self.ifModev != 'Y':
+            self.pushButton.setStyleSheet("background-color: red")
+            self.pushButton_3.setStyleSheet("background-color: green")
+            self.pushButton_4.setStyleSheet("background-color: green")
         self.pushButton_2.setStyleSheet("background-color: green")
-        self.pushButton_3.setStyleSheet("background-color: green")
-        self.pushButton_4.setStyleSheet("background-color: green")
         self.pushButton_6.setStyleSheet("background-color: green")
         self.control = 1
         oneoff = False
         self.controlThread.terminate()
         self.errorMsg.setText('')
-        self.controlThread = startControl(self.control, oneoff, self.gqrxIPv, self.gqrxPortv, self.hamlibIPv, self.hamlibPortv, self.fldigiIPv, self.fldigiPortv, self.fldigiv, self.modev)
+        self.controlThread = startControl(self.control, oneoff, self.gqrxIPv, self.gqrxPortv, self.hamlibIPv, self.hamlibPortv, self.fldigiIPv, self.fldigiPortv, self.fldigiv, self.modev, self.ifModev, self.ifFreqv)
         self.controlThread.reportErr.connect(self.reportErrMsg)
         self.controlThread.start()
         
     def gqrxControl(self):
         self.btn_stop.setStyleSheet("background-color: green")
-        self.pushButton.setStyleSheet("background-color: green")
+        if self.ifModev != 'Y':
+            self.pushButton.setStyleSheet("background-color: green")
+            self.pushButton_3.setStyleSheet("background-color: green")
+            self.pushButton_4.setStyleSheet("background-color: green")
         self.pushButton_2.setStyleSheet("background-color: red")
-        self.pushButton_3.setStyleSheet("background-color: green")
-        self.pushButton_4.setStyleSheet("background-color: green")
         self.pushButton_6.setStyleSheet("background-color: green")
         self.control = 2
         oneoff = False
         self.controlThread.terminate()
         self.errorMsg.setText('')
-        self.controlThread = startControl(self.control, oneoff, self.gqrxIPv, self.gqrxPortv, self.hamlibIPv, self.hamlibPortv, self.fldigiIPv, self.fldigiPortv, self.fldigiv, self.modev)
+        self.controlThread = startControl(self.control, oneoff, self.gqrxIPv, self.gqrxPortv, self.hamlibIPv, self.hamlibPortv, self.fldigiIPv, self.fldigiPortv, self.fldigiv, self.modev, self.ifModev, self.ifFreqv)
         self.controlThread.reportErr.connect(self.reportErrMsg)
         self.controlThread.start()
     
     def hamlibControl(self):
         self.btn_stop.setStyleSheet("background-color: green")
-        self.pushButton.setStyleSheet("background-color: green")
+        if self.ifModev != 'Y':
+            self.pushButton.setStyleSheet("background-color: green")
+            self.pushButton_3.setStyleSheet("background-color: red")
+            self.pushButton_4.setStyleSheet("background-color: green")
         self.pushButton_2.setStyleSheet("background-color: green")
-        self.pushButton_3.setStyleSheet("background-color: red")
-        self.pushButton_4.setStyleSheet("background-color: green")
         self.pushButton_6.setStyleSheet("background-color: green")
         self.control = 3
         oneoff = False
         self.controlThread.terminate()
         self.errorMsg.setText('')
-        self.controlThread = startControl(self.control, oneoff, self.gqrxIPv, self.gqrxPortv, self.hamlibIPv, self.hamlibPortv, self.fldigiIPv, self.fldigiPortv, self.fldigiv, self.modev)
+        self.controlThread = startControl(self.control, oneoff, self.gqrxIPv, self.gqrxPortv, self.hamlibIPv, self.hamlibPortv, self.fldigiIPv, self.fldigiPortv, self.fldigiv, self.modev, self.ifModev, self.ifFreqv)
         self.controlThread.reportErr.connect(self.reportErrMsg)
         self.controlThread.start()
               
     def gqrxControlOneoff(self):
         self.btn_stop.setStyleSheet("background-color: green")
-        self.pushButton.setStyleSheet("background-color: green")
+        if self.ifModev != 'Y':
+            self.pushButton.setStyleSheet("background-color: green")
+            self.pushButton_3.setStyleSheet("background-color: green")
+            self.pushButton_4.setStyleSheet("background-color: green")
         self.pushButton_2.setStyleSheet("background-color: green")
-        self.pushButton_3.setStyleSheet("background-color: green")
-        self.pushButton_4.setStyleSheet("background-color: green")
         self.pushButton_6.setStyleSheet("background-color: red")
         self.control = 2
         oneoff = True
         self.controlThread.terminate()
         self.errorMsg.setText('')
-        self.controlThread = startControl(self.control, oneoff, self.gqrxIPv, self.gqrxPortv, self.hamlibIPv, self.hamlibPortv, self.fldigiIPv, self.fldigiPortv, self.fldigiv, self.modev)
+        self.controlThread = startControl(self.control, oneoff, self.gqrxIPv, self.gqrxPortv, self.hamlibIPv, self.hamlibPortv, self.fldigiIPv, self.fldigiPortv, self.fldigiv, self.modev, self.ifModev, self.ifFreqv)
         self.controlThread.reportErr.connect(self.reportErrMsg)
         self.controlThread.start()
         self.pushButton_6.setStyleSheet("background-color: green")
@@ -311,16 +365,17 @@ class gqrxHamlib(QtGui.QMainWindow, gqrxHamlibGUI.Ui_MainWindow):
         
     def hamlibControlOneoff(self):
         self.btn_stop.setStyleSheet("background-color: green")
-        self.pushButton.setStyleSheet("background-color: green")
+        if self.ifModev != 'Y':
+            self.pushButton.setStyleSheet("background-color: green")
+            self.pushButton_3.setStyleSheet("background-color: green")
+            self.pushButton_4.setStyleSheet("background-color: red")
         self.pushButton_2.setStyleSheet("background-color: green")
-        self.pushButton_3.setStyleSheet("background-color: green")
-        self.pushButton_4.setStyleSheet("background-color: red")
         self.pushButton_6.setStyleSheet("background-color: green")
         self.control = 3
         oneoff = True
         self.controlThread.terminate()
         self.errorMsg.setText('')
-        self.controlThread = startControl(self.control, oneoff, self.gqrxIPv, self.gqrxPortv, self.hamlibIPv, self.hamlibPortv, self.fldigiIPv, self.fldigiPortv, self.fldigiv, self.modev)
+        self.controlThread = startControl(self.control, oneoff, self.gqrxIPv, self.gqrxPortv, self.hamlibIPv, self.hamlibPortv, self.fldigiIPv, self.fldigiPortv, self.fldigiv, self.modev, self.ifModev, self.ifFreqv)
         self.controlThread.reportErr.connect(self.reportErrMsg)
         self.controlThread.start()
         self.pushButton_4.setStyleSheet("background-color: green")
@@ -332,18 +387,31 @@ class gqrxHamlib(QtGui.QMainWindow, gqrxHamlibGUI.Ui_MainWindow):
             cf = open(homedir + '/.config/.gqrxHamlib.config', 'r')
         except IOError:
             cf = open(homedir + '/.config/.gqrxHamlib.config', 'w+')
-            configLine = '127.0.0.1,7356,127.0.0.1,4532,127.0.0.1,7362,N,Y'
+            configLine = '127.0.0.1,7356,127.0.0.1,4532,127.0.0.1,7362,N,Y,N,0'
             cf.write(configLine)
             cf.close()
             cf = open(homedir + '/.config/.gqrxHamlib.config', 'r')
         configLine = cf.read()
-        self.gqrxIPv, self.gqrxPortv, self.hamlibIPv, self.hamlibPortv, self.fldigiIPv, self.fldigiPortv, self.fldigiv, self.modev = configLine.split(',')
+        # handle upgrade from 2.5 to 2.6 where there are two additional parameters for IF panaadaptor functionality
+        countitems = len(configLine.split(','))
+        if countitems == 8:
+            self.gqrxIPv, self.gqrxPortv, self.hamlibIPv, self.hamlibPortv, self.fldigiIPv, self.fldigiPortv, self.fldigiv, self.modev = configLine.split(',')
+            self.ifModev = 'N'
+            self.ifFreqv = str(0)
+            cf.close()
+            cf = open(homedir + '/.config/.gqrxHamlib.config', 'w')
+            configLine = self.gqrxIPv+','+self.gqrxPortv+','+self.hamlibIPv+','+self.hamlibPortv+','+self.fldigiIPv+','+self.fldigiPortv+','+self.fldigiv+','+self.modev+','+self.ifModev+','+self.ifFreqv
+            cf.write(configLine)
+            cf.close()
+        else:
+            self.gqrxIPv, self.gqrxPortv, self.hamlibIPv, self.hamlibPortv, self.fldigiIPv, self.fldigiPortv, self.fldigiv, self.modev, self.ifModev, self.ifFreqv = configLine.split(',')
         self.gqrxIP.setText(self.gqrxIPv)
         self.gqrxPort.setText(self.gqrxPortv)
         self.hamlibIP.setText(self.hamlibIPv)
         self.hamlibPort.setText(self.hamlibPortv)
         self.fldigiIP.setText(self.fldigiIPv)
         self.fldigiPort.setText(self.fldigiPortv)
+        self.if_freq.setText(self.ifFreqv)
         if self.fldigiv == 'Y':
             self.fldigi.setChecked(True)
             # change labels
@@ -354,6 +422,20 @@ class gqrxHamlib(QtGui.QMainWindow, gqrxHamlibGUI.Ui_MainWindow):
             self.mode.setChecked(True)
         else:
             self.mode.setChecked(False)
+        if self.ifModev == 'Y':
+            self.panadaptor.setChecked(True)
+            self.pushButton.setStyleSheet("background-color: grey")
+            self.pushButton_2.setStyleSheet("background-color: green")
+            self.pushButton_3.setStyleSheet("background-color: grey")
+            self.pushButton_4.setStyleSheet("background-color: grey")
+            self.pushButton_6.setStyleSheet("background-color: green")
+        else:
+            self.panadaptor.setChecked(False)
+            self.pushButton.setStyleSheet("background-color: green")
+            self.pushButton_2.setStyleSheet("background-color: green")
+            self.pushButton_3.setStyleSheet("background-color: green")
+            self.pushButton_4.setStyleSheet("background-color: green")
+            self.pushButton_6.setStyleSheet("background-color: green")
         cf.close()
             
     def updateConfig(self):
@@ -365,6 +447,7 @@ class gqrxHamlib(QtGui.QMainWindow, gqrxHamlibGUI.Ui_MainWindow):
         self.hamlibPortv = self.hamlibPort.text()
         self.fldigiIPv = self.fldigiIP.text()
         self.fldigiPortv = self.fldigiPort.text()
+        self.ifFreqv = self.if_freq.text()
         if self.fldigi.isChecked():
             self.fldigiv = 'Y'
             # change labels
@@ -385,7 +468,21 @@ class gqrxHamlib(QtGui.QMainWindow, gqrxHamlibGUI.Ui_MainWindow):
             self.modev = 'Y'
         else:
             self.modev = 'N'
-        configLine = self.gqrxIPv+','+self.gqrxPortv+','+self.hamlibIPv+','+self.hamlibPortv+','+self.fldigiIPv+','+self.fldigiPortv+','+self.fldigiv+','+self.modev
+        if self.panadaptor.isChecked():
+            self.ifModev = 'Y'
+            self.pushButton.setStyleSheet("background-color: grey")
+            self.pushButton_2.setStyleSheet("background-color: green")
+            self.pushButton_3.setStyleSheet("background-color: grey")
+            self.pushButton_4.setStyleSheet("background-color: grey")
+            self.pushButton_6.setStyleSheet("background-color: green")
+        else:
+            self.ifModev = 'N'
+            self.pushButton.setStyleSheet("background-color: green")
+            self.pushButton_2.setStyleSheet("background-color: green")
+            self.pushButton_3.setStyleSheet("background-color: green")
+            self.pushButton_4.setStyleSheet("background-color: green")
+            self.pushButton_6.setStyleSheet("background-color: green")
+        configLine = self.gqrxIPv+','+self.gqrxPortv+','+self.hamlibIPv+','+self.hamlibPortv+','+self.fldigiIPv+','+self.fldigiPortv+','+self.fldigiv+','+self.modev+','+self.ifModev+','+self.ifFreqv
         cf.write(configLine)
         cf.close()
         # revert to previous sync method
