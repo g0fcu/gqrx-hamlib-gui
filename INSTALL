@@ -1,8 +1,10 @@
 
 Installation
 ------------
-Install PyQt4 via your package manager if not already installed: sudo apt-get install python-qt4
+This version is written for Python3. The biggest difference being that the xml-rpc library used to communicate with fldigi was renamed between Python2 and Python3.
 
-Install gqrxHamlib: sudo pip install gqrxHamlib
+Install PyQt4 for Python3 via your package manager if not already installed: sudo apt-get install python3-pyqt4
+
+Install gqrxHamlib using the Python3 pip installer: sudo pip3 install gqrxHamlib
 
 Run gqrxHamlib: type 'gqrxHamlib' at command prompt
