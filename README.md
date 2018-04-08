@@ -21,4 +21,4 @@ Install gqrxHamlib: sudo pip install gqrxHamlib
 
 Run gqrxHamlib: type 'gqrxHamlib' at command prompt
 
-Copyright 2017 Simon Kennedy, G0FCU, g0fcu at g0fcu.com
+Copyright 2017,2018 Simon Kennedy, G0FCU, g0fcu at g0fcu.com
