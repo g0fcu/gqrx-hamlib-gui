@@ -8,7 +8,7 @@
 # starting this program. Ports used are the defaults for gqrx and Hamlib.
 #
 #
-# Copyright 2017 Simon Kennedy, G0FCU, g0fcu at g0fcu.com
+# Copyright 2017, 2018 Simon Kennedy, G0FCU, g0fcu at g0fcu.com
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
@@ -63,6 +63,8 @@ class startControl(QThread):
         HAMLIB_PORT = 4532
         GQRX_PORT = 7356
         FLRIG_PORT = 7362
+        sockGqrx = 0
+        sockHamlib = 0
         #self.setupUi(self)
         if self.fldigiv == 'Y':
             endpoint = 'flrig'
@@ -73,6 +75,18 @@ class startControl(QThread):
             endpoint = 'hamlib'
             RIG_PORT = HAMLIB_PORT
             TCP_IP = self.hamlibIPv
+            sockHamlib = socket.create_connection((TCP_IP, HAMLIB_PORT))
+            #sockHamlib = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+            # Bind the socket to the port
+            #server_address1 = (TCP_IP, HAMLIB_PORT)
+            #sockHamlib.connect(server_address)
+            #sockHamlib.bind(server_address1)
+        #sockGqrx = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+        # Bind the socket to the port
+        #server_address2 = (self.gqrxIPv, GQRX_PORT)
+        #sockGqrx.bind(server_address2)
+        #sockGqrx.connect(server_address)
+        sockGqrx = socket.create_connection((self.gqrxIPv, GQRX_PORT))
         rig_freq = 0
         gqrx_freq = 0
         old_rig_freq = 0
@@ -83,7 +97,8 @@ class startControl(QThread):
         old_rig_mode = ''
         old_gqrx_mode = ''
         data = 0
-        gqrx_freq = self.getfreq(self.gqrxIPv, GQRX_PORT, 'gqrx')
+                
+        gqrx_freq = self.getfreq(self.gqrxIPv, GQRX_PORT, 'gqrx', sockGqrx)
         if gqrx_freq.find('\n') != -1:
             gqrx_freq = gqrx_freq[0:gqrx_freq.find('\n')]
         else:
@@ -94,7 +109,7 @@ class startControl(QThread):
             time.sleep(0.2)
             if self.control == 1 or self.control == 3:
                 #rig_freq = str(self.getfreq(TCP_IP, RIG_PORT, endpoint))
-                rig_freq = self.getfreq(TCP_IP, RIG_PORT, endpoint)
+                rig_freq = self.getfreq(TCP_IP, RIG_PORT, endpoint, sockHamlib)
                 if endpoint == 'hamlib':
                     if rig_freq.find('\n') != -1:
                         rig_freq = rig_freq[0:rig_freq.find('\n')]
@@ -105,22 +120,22 @@ class startControl(QThread):
                         rig_freq = int(rig_freqStr)
                 if rig_freq != old_rig_freq:
                     # set gqrx to Hamlib/flrig frequency
-                    self.setfreq(self.gqrxIPv, GQRX_PORT, 'gqrx', int(rig_freq))
+                    self.setfreq(self.gqrxIPv, GQRX_PORT, 'gqrx', int(rig_freq), sockGqrx)
                     #print('SetFreq Return Code from GQRX: {0}'.format(rc))
                     old_rig_freq = rig_freq
                     old_gqrx_freq = gqrx_freq
                 if self.modev == 'Y':
-                    rig_mode = self.getmode(TCP_IP, RIG_PORT, endpoint)[:3]
+                    rig_mode = self.getmode(TCP_IP, RIG_PORT, endpoint, sockHamlib)[:3]
                     if rig_mode != old_rig_mode:
                         set_mode = rig_mode
                         # set gqrx to Hamlib frequency
-                        self.setmode(self.gqrxIPv, GQRX_PORT, 'gqrx', set_mode)
+                        self.setmode(self.gqrxIPv, GQRX_PORT, 'gqrx', set_mode, sockGqrx)
                         old_rig_mode = rig_mode
                         old_gqrx_mode = rig_mode
             
        
             if self.control == 1 or self.control == 2:
-                gqrx_freq = self.getfreq(self.gqrxIPv, GQRX_PORT, 'gqrx')
+                gqrx_freq = self.getfreq(self.gqrxIPv, GQRX_PORT, 'gqrx', sockGqrx)
                 if gqrx_freq.find('\n') != -1:
                     gqrx_freq = gqrx_freq[0:gqrx_freq.find('\n')]
                 if self.control == 2 and self.ifModev == 'Y':
@@ -130,7 +145,7 @@ class startControl(QThread):
                         else:
                             ifDiff = 0 - (int(self.ifFreqv) - int(gqrx_freq))
                         #print 'ifDiff', ifDiff,'ifFreqv',int(self.ifFreqv),'gqrx_freq',int(gqrx_freq)
-                        rig_freq = str(self.getfreq(TCP_IP, RIG_PORT, endpoint))
+                        rig_freq = str(self.getfreq(TCP_IP, RIG_PORT, endpoint, sockHamlib))
                         if endpoint == 'hamlib':
                              if rig_freq.find('\n') != -1:
                                 rig_freq = rig_freq[0:rig_freq.find('\n')]
@@ -138,32 +153,32 @@ class startControl(QThread):
                             if rig_freq.find('.') != -1:
                                 rig_freq = rig_freq[0:rig_freq.find('.')]
                         
-                        self.setfreq(TCP_IP, RIG_PORT, endpoint, float(int(rig_freq) + int(ifDiff)))
+                        self.setfreq(TCP_IP, RIG_PORT, endpoint, float(int(rig_freq) + int(ifDiff)), sockHamlib)
                         #print 'calc', float(int(rig_freq) - int(ifDiff))
                         #old_gqrx_freq = self.ifFreqv
                         gqrx_freq = self.ifFreqv
-                        self.setfreq(self.gqrxIPv, GQRX_PORT, 'gqrx', float(gqrx_freq))
+                        self.setfreq(self.gqrxIPv, GQRX_PORT, 'gqrx', float(gqrx_freq), sockGqrx)
                             
                     if self.modev == 'Y':        
-                        gqrx_mode = self.getmode(self.gqrxIPv, GQRX_PORT, 'gqrx')[:3]
+                        gqrx_mode = self.getmode(self.gqrxIPv, GQRX_PORT, 'gqrx', sockGqrx)[:3]
                         if gqrx_mode != old_gqrx_mode:
                             # set Hamlib to gqrx frequency
-                            self.setmode(TCP_IP, RIG_PORT, endpoint, gqrx_mode)
+                            self.setmode(TCP_IP, RIG_PORT, endpoint, gqrx_mode, sockGqrx)
                             #print('SetMode Return Code from Hamlib: {0}'.format(rc))
                             old_gqrx_mode = gqrx_mode
                             old_rig_mode = gqrx_mode  
                 else:
                     if gqrx_freq != old_gqrx_freq:
                         # set Hamlib to gqrx frequency
-                        self.setfreq(TCP_IP, RIG_PORT, endpoint, float(gqrx_freq))
+                        self.setfreq(TCP_IP, RIG_PORT, endpoint, float(gqrx_freq), sockHamlib)
                         old_gqrx_freq = gqrx_freq
                         old_rig_freq = gqrx_freq
                     if self.modev == 'Y':        
-                        gqrx_mode = self.getmode(self.gqrxIPv, GQRX_PORT, 'gqrx')[:3]
+                        gqrx_mode = self.getmode(self.gqrxIPv, GQRX_PORT, 'gqrx', sockGqrx)[:3]
 
                         if gqrx_mode != old_gqrx_mode:
                             # set Hamlib to gqrx frequency
-                            self.setmode(TCP_IP, RIG_PORT, endpoint, gqrx_mode)
+                            self.setmode(TCP_IP, RIG_PORT, endpoint, gqrx_mode, sockHamlib)
                             #print('SetMode Return Code from Hamlib: {0}'.format(rc))
                             old_gqrx_mode = gqrx_mode
                             old_rig_mode = gqrx_mode 
@@ -172,12 +187,12 @@ class startControl(QThread):
                 return
     
       
-    def getfreq(self, IP, PORT, endpoint):
+    def getfreq(self, IP, PORT, endpoint, sock):
         if endpoint == 'hamlib' or endpoint == 'gqrx':
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+            #sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
             # Bind the socket to the port
-            server_address = (IP, PORT)
-            sock.connect(server_address)
+            #server_address = (IP, PORT)
+            #sock.connect(server_address)
             sock.sendall(b'f\n')
             data = sock.recv(16)
             #print ('get', endpoint, ' ',IP ,' ',data)
@@ -185,61 +200,62 @@ class startControl(QThread):
                 if data[:6] != 'RPRT 0':
                     self.reportErr.emit(endpoint, str(data))
                     return
-            sock.close()
+            #sock.close()
             data = data.decode("utf-8")
         else:
             data = 0
             data = self.server.main.get_frequency()
         return data
     
-    def setfreq(self, IP, PORT, endpoint, freq):
+    def setfreq(self, IP, PORT, endpoint, freq, sock):
         if endpoint == 'hamlib' or endpoint == 'gqrx':
-            sock = socket.socket(socket.AF_INET, 
-                         socket.SOCK_STREAM) 
+            #sock = socket.socket(socket.AF_INET, 
+            #             socket.SOCK_STREAM) 
             # Bind the socket to the port
-            server_address = (IP, PORT)
-            sock.connect(server_address)
+            #server_address = (IP, PORT)
+            #sock.connect(server_address)
             build_msg = 'F ' + str(freq) + '\n'
             MESSAGE = bytes(build_msg, 'utf-8')
+            #print(sock)
             sock.sendall(MESSAGE)
             #print ('set', endpoint, ' ',IP ,' ',build_msg,MESSAGE)
             data = sock.recv(16)
-            #print ('set', endpoint, ' ',IP ,' ',data)
+            print ('set', endpoint, ' ',IP ,' ',data)
             if data[:4] == 'RPRT':
-                if data[:6] != 'RPRT 0':
-                    self.reportErr.emit(endpoint, str(data))
-                    return
-            sock.close()
+                 if data[:6] != 'RPRT 0':
+                     self.reportErr.emit(endpoint, str(data))
+                     return
+                    ##sock.close()
         else:
             data = self.server.main.set_frequency(float(freq))
         return data
     
-    def getmode(self, IP, PORT, endpoint):
+    def getmode(self, IP, PORT, endpoint, sock):
         if endpoint == 'hamlib' or endpoint == 'gqrx':
-            sock = socket.socket(socket.AF_INET, 
-                             socket.SOCK_STREAM) 
+            #sock = socket.socket(socket.AF_INET, 
+            #                 socket.SOCK_STREAM) 
             # Bind the socket to the port
-            server_address = (IP, PORT)
-            sock.connect(server_address)
+            #server_address = (IP, PORT)
+            #sock.connect(server_address)
             sock.sendall(b'm\n')
             data = sock.recv(16)
             if data[:4] == 'RPRT':
                 if data[:6] != 'RPRT 0':
                     self.reportErr.emit(endpoint, str(data))
                     return
-            sock.close()
+            #sock.close()
             data = data.decode("utf-8")
         else:
             data = self.server.rig.get_mode(str())  
         return data
     
-    def setmode(self, IP, PORT, endpoint, mode):
+    def setmode(self, IP, PORT, endpoint, mode, sock):
         if endpoint == 'hamlib' or endpoint == 'gqrx':
-            sock = socket.socket(socket.AF_INET, 
-                             socket.SOCK_STREAM) 
+            #sock = socket.socket(socket.AF_INET, 
+            #                 socket.SOCK_STREAM) 
             # Bind the socket to the port
-            server_address = (IP, PORT)
-            sock.connect(server_address)
+            #server_address = (IP, PORT)
+            #sock.connect(server_address)
             build_msg = 'M ' + str(mode) + ' 0' + '\n'
             MESSAGE = bytes(build_msg, "utf-8")
             sock.sendall(MESSAGE)
@@ -249,7 +265,7 @@ class startControl(QThread):
                 if data[:6] != 'RPRT 0':
                     self.reportErr.emit(endpoint, str(data))
                     return
-            sock.close()
+            #sock.close()
         else:
             data = self.server.rig.set_mode(str(mode))
         return data
