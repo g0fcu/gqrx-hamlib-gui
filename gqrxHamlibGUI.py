@@ -710,7 +710,7 @@ class Ui_MainWindow(object):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(_translate("MainWindow", "gqrx - Hamlib & flrig Synchronisation v2.6.2", None))
+        MainWindow.setWindowTitle(_translate("MainWindow", "gqrx - Hamlib & flrig Synchronisation v2.7.0", None))
         self.pushButton.setText(_translate("MainWindow", "gqrx<-->Hamlib", None))
         self.pushButton_6.setText(_translate("MainWindow", "gqrx-->Hamlib", None))
         self.pushButton_4.setText(_translate("MainWindow", "gqrx<--Hamlib", None))
