@@ -110,78 +110,85 @@ class startControl(QThread):
             if self.control == 1 or self.control == 3:
                 #rig_freq = str(self.getfreq(TCP_IP, RIG_PORT, endpoint))
                 rig_freq = self.getfreq(TCP_IP, RIG_PORT, endpoint, sockHamlib)
-                if endpoint == 'hamlib':
-                    if rig_freq.find('\n') != -1:
-                        rig_freq = rig_freq[0:rig_freq.find('\n')]
-                else:
-                    rig_freqStr = repr(rig_freq)
-                    if rig_freqStr.find('.') != -1:
-                        rig_freqStr = rig_freqStr[0:rig_freqStr.find('.')]
-                        rig_freq = int(rig_freqStr)
-                if rig_freq != old_rig_freq:
-                    # set gqrx to Hamlib/flrig frequency
-                    self.setfreq(self.gqrxIPv, GQRX_PORT, 'gqrx', int(rig_freq), sockGqrx)
-                    #print('SetFreq Return Code from GQRX: {0}'.format(rc))
-                    old_rig_freq = rig_freq
-                    old_gqrx_freq = gqrx_freq
-                if self.modev == 'Y':
-                    rig_mode = self.getmode(TCP_IP, RIG_PORT, endpoint, sockHamlib)[:3]
-                    if rig_mode != old_rig_mode:
-                        set_mode = rig_mode
-                        # set gqrx to Hamlib frequency
-                        self.setmode(self.gqrxIPv, GQRX_PORT, 'gqrx', set_mode, sockGqrx)
-                        old_rig_mode = rig_mode
-                        old_gqrx_mode = rig_mode
+                #print (rig_freq)
+                if rig_freq[:4] != 'RPRT':
+                    if endpoint == 'hamlib':
+                        if rig_freq.find('\n') != -1:
+                            rig_freq = rig_freq[0:rig_freq.find('\n')]
+                    else:
+                        rig_freqStr = repr(rig_freq)
+                        if rig_freqStr.find('.') != -1:
+                            rig_freqStr = rig_freqStr[0:rig_freqStr.find('.')]
+                            rig_freq = int(rig_freqStr)
+                    if rig_freq != old_rig_freq:
+                        # set gqrx to Hamlib/flrig frequency
+                        print ('call set gqrx freq', self.gqrxIPv, GQRX_PORT, 'gqrx', '@', rig_freq, '@', sockGqrx)
+                        self.setfreq(self.gqrxIPv, GQRX_PORT, 'gqrx', int(rig_freq), sockGqrx)
+                        #print('SetFreq Return Code from GQRX: {0}'.format(rc))
+                        old_rig_freq = rig_freq
+                        old_gqrx_freq = gqrx_freq
+                    if self.modev == 'Y':
+                        rig_mode = self.getmode(TCP_IP, RIG_PORT, endpoint, sockHamlib)[:3]
+                        if rig_mode != old_rig_mode:
+                            set_mode = rig_mode
+                            # set gqrx to Hamlib frequency
+                            self.setmode(self.gqrxIPv, GQRX_PORT, 'gqrx', set_mode, sockGqrx)
+                            old_rig_mode = rig_mode
+                            old_gqrx_mode = rig_mode
             
        
             if self.control == 1 or self.control == 2:
                 gqrx_freq = self.getfreq(self.gqrxIPv, GQRX_PORT, 'gqrx', sockGqrx)
-                if gqrx_freq.find('\n') != -1:
-                    gqrx_freq = gqrx_freq[0:gqrx_freq.find('\n')]
-                if self.control == 2 and self.ifModev == 'Y':
-                    if gqrx_freq != old_gqrx_freq:
-                        if gqrx_freq > self.ifFreqv:
-                            ifDiff = int(gqrx_freq) - int(self.ifFreqv)
-                        else:
-                            ifDiff = 0 - (int(self.ifFreqv) - int(gqrx_freq))
-                        #print 'ifDiff', ifDiff,'ifFreqv',int(self.ifFreqv),'gqrx_freq',int(gqrx_freq)
-                        rig_freq = str(self.getfreq(TCP_IP, RIG_PORT, endpoint, sockHamlib))
-                        if endpoint == 'hamlib':
-                             if rig_freq.find('\n') != -1:
-                                rig_freq = rig_freq[0:rig_freq.find('\n')]
-                        else:
-                            if rig_freq.find('.') != -1:
-                                rig_freq = rig_freq[0:rig_freq.find('.')]
-                        
-                        self.setfreq(TCP_IP, RIG_PORT, endpoint, float(int(rig_freq) + int(ifDiff)), sockHamlib)
-                        #print 'calc', float(int(rig_freq) - int(ifDiff))
-                        #old_gqrx_freq = self.ifFreqv
-                        gqrx_freq = self.ifFreqv
-                        self.setfreq(self.gqrxIPv, GQRX_PORT, 'gqrx', float(gqrx_freq), sockGqrx)
+                #print (gqrx_freq)
+                if gqrx_freq[:4] != 'RPRT':
+                    if gqrx_freq.find('\n') != -1:
+                        gqrx_freq = gqrx_freq[0:gqrx_freq.find('\n')]
+                    if self.control == 2 and self.ifModev == 'Y':
+                        if gqrx_freq != old_gqrx_freq:
+                            if gqrx_freq > self.ifFreqv:
+                                ifDiff = int(gqrx_freq) - int(self.ifFreqv)
+                            else:
+                                ifDiff = 0 - (int(self.ifFreqv) - int(gqrx_freq))
+                            #print 'ifDiff', ifDiff,'ifFreqv',int(self.ifFreqv),'gqrx_freq',int(gqrx_freq)
+                            rig_freq = str(self.getfreq(TCP_IP, RIG_PORT, endpoint, sockHamlib))
+                            if endpoint == 'hamlib':
+                                 if rig_freq.find('\n') != -1:
+                                    rig_freq = rig_freq[0:rig_freq.find('\n')]
+                            else:
+                                if rig_freq.find('.') != -1:
+                                    rig_freq = rig_freq[0:rig_freq.find('.')]
                             
-                    if self.modev == 'Y':        
-                        gqrx_mode = self.getmode(self.gqrxIPv, GQRX_PORT, 'gqrx', sockGqrx)[:3]
-                        if gqrx_mode != old_gqrx_mode:
-                            # set Hamlib to gqrx frequency
-                            self.setmode(TCP_IP, RIG_PORT, endpoint, gqrx_mode, sockGqrx)
-                            #print('SetMode Return Code from Hamlib: {0}'.format(rc))
-                            old_gqrx_mode = gqrx_mode
-                            old_rig_mode = gqrx_mode  
-                else:
-                    if gqrx_freq != old_gqrx_freq:
-                        # set Hamlib to gqrx frequency
-                        self.setfreq(TCP_IP, RIG_PORT, endpoint, float(gqrx_freq), sockHamlib)
-                        old_gqrx_freq = gqrx_freq
-                        old_rig_freq = gqrx_freq
-                    if self.modev == 'Y':        
-                        gqrx_mode = self.getmode(self.gqrxIPv, GQRX_PORT, 'gqrx', sockGqrx)[:3]
-
-                        if gqrx_mode != old_gqrx_mode:
-                            # set Hamlib to gqrx frequency
-                            self.setmode(TCP_IP, RIG_PORT, endpoint, gqrx_mode, sockHamlib)
-                            #print('SetMode Return Code from Hamlib: {0}'.format(rc))
-                            old_gqrx_mode = gqrx_mode
-                            old_rig_mode = gqrx_mode 
+                            self.setfreq(TCP_IP, RIG_PORT, endpoint, float(int(rig_freq) + int(ifDiff)), sockHamlib)
+                            #print 'calc', float(int(rig_freq) - int(ifDiff))
+                            #old_gqrx_freq = self.ifFreqv
+                            gqrx_freq = self.ifFreqv
+                            self.setfreq(self.gqrxIPv, GQRX_PORT, 'gqrx', float(gqrx_freq), sockGqrx)
+                                
+                        if self.modev == 'Y':        
+                            gqrx_mode = self.getmode(self.gqrxIPv, GQRX_PORT, 'gqrx', sockGqrx)[:3]
+                            if gqrx_mode != old_gqrx_mode:
+                                # set Hamlib to gqrx frequency
+                                self.setmode(TCP_IP, RIG_PORT, endpoint, gqrx_mode, sockGqrx)
+                                #print('SetMode Return Code from Hamlib: {0}'.format(rc))
+                                old_gqrx_mode = gqrx_mode
+                                old_rig_mode = gqrx_mode  
+                    else:
+                        #print (gqrx_freq)
+                        if gqrx_freq[:4] != 'RPRT':
+                            if gqrx_freq != old_gqrx_freq:
+                                # set Hamlib to gqrx frequency
+                                self.setfreq(TCP_IP, RIG_PORT, endpoint, float(gqrx_freq), sockHamlib)
+                                old_gqrx_freq = gqrx_freq
+                                old_rig_freq = gqrx_freq
+                            if self.modev == 'Y':        
+                                gqrx_mode = self.getmode(self.gqrxIPv, GQRX_PORT, 'gqrx', sockGqrx)[:3]
+        
+                                if gqrx_mode != old_gqrx_mode:
+                                    # set Hamlib to gqrx frequency
+                                    self.setmode(TCP_IP, RIG_PORT, endpoint, gqrx_mode, sockHamlib)
+                                    #print('SetMode Return Code from Hamlib: {0}'.format(rc))
+                                    old_gqrx_mode = gqrx_mode
+                                    old_rig_mode = gqrx_mode 
                             
             if self.oneoff == True:
                 return
@@ -199,7 +206,7 @@ class startControl(QThread):
             if data[:4] == 'RPRT':
                 if data[:6] != 'RPRT 0':
                     self.reportErr.emit(endpoint, str(data))
-                    return
+                    return data
             #sock.close()
             data = data.decode("utf-8")
         else:
@@ -224,7 +231,7 @@ class startControl(QThread):
             if data[:4] == 'RPRT':
                  if data[:6] != 'RPRT 0':
                      self.reportErr.emit(endpoint, str(data))
-                     return
+                     return data
                     ##sock.close()
         else:
             data = self.server.main.set_frequency(float(freq))
@@ -242,7 +249,7 @@ class startControl(QThread):
             if data[:4] == 'RPRT':
                 if data[:6] != 'RPRT 0':
                     self.reportErr.emit(endpoint, str(data))
-                    return
+                    return data
             #sock.close()
             data = data.decode("utf-8")
         else:
@@ -264,7 +271,7 @@ class startControl(QThread):
             if data[:4] == 'RPRT':
                 if data[:6] != 'RPRT 0':
                     self.reportErr.emit(endpoint, str(data))
-                    return
+                    return data
             #sock.close()
         else:
             data = self.server.rig.set_mode(str(mode))
@@ -300,7 +307,7 @@ class gqrxHamlib(QtGui.QMainWindow, gqrxHamlibGUI.Ui_MainWindow):
         self.pushButton_6.clicked.connect(self.gqrxControlOneoff)
         
     def reportErrMsg(self, source, rc):
-        self.errorMsg.setText('Error, return code ' + rc + ' reported by ' + source)
+        self.errorMsg.setText('Error, return code ' + rc + ' reported by ' + source) 
                     
     def stopThread(self):
         self.btn_stop.setStyleSheet("background-color: red")
