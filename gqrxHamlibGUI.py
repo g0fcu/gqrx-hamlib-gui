@@ -710,7 +710,7 @@ class Ui_MainWindow(object):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(_translate("MainWindow", "gqrx - Hamlib & flrig Synchronisation v2.7.0", None))
+        MainWindow.setWindowTitle(_translate("MainWindow", "gqrx - Hamlib & flrig Synchronisation v2.7.4", None))
         self.pushButton.setText(_translate("MainWindow", "gqrx<-->Hamlib", None))
         self.pushButton_6.setText(_translate("MainWindow", "gqrx-->Hamlib", None))
         self.pushButton_4.setText(_translate("MainWindow", "gqrx<--Hamlib", None))
@@ -721,7 +721,7 @@ class Ui_MainWindow(object):
         self.label_3.setText(_translate("MainWindow", "One-Off", None))
         self.label_9.setText(_translate("MainWindow", "gqrxHamlib", None))
         self.label_10.setText(_translate("MainWindow", "https://github.com/g0fcu/gqrx-hamlib-gui/wiki", None))
-        self.label_11.setText(_translate("MainWindow", "Copyright 2017 Simon Kennedy, G0FCU", None))
+        self.label_11.setText(_translate("MainWindow", "Copyright 2017,2018 Simon Kennedy, G0FCU", None))
         self.label_12.setText(_translate("MainWindow", "Licenced under the terms of the GNU General Public License v3", None))
         self.fldigiIP.setInputMask(_translate("MainWindow", "999.999.999.999;_", None))
         self.fldigiPort.setInputMask(_translate("MainWindow", "99999;_", None))
