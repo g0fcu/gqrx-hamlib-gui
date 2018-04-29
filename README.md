@@ -15,9 +15,9 @@ This program is written in Python 3.5/PyQt4. From version 2.6.2 it requires Pyth
 
 Installation
 ------------
-Install PyQt4 via your package manager if not already installed: sudo apt-get install python-qt4
+Install PyQt4 via your package manager if not already installed: sudo apt-get install python3-pyqt4
 
-Install gqrxHamlib: sudo pip install gqrxHamlib
+Install gqrxHamlib: sudo pip3 install gqrxHamlib
 
 Run gqrxHamlib: type 'gqrxHamlib' at command prompt
 
